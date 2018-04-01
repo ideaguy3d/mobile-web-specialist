@@ -1,5 +1,5 @@
-let staticCacheName = 'wittr-static-v2';
-// third change
+let staticCacheName = 'wittr-static-v12';
+// change 1 2 3 4 5
 self.addEventListener('install', function (event) {
     const urlsToCache = [
         '/',
@@ -26,16 +26,17 @@ self.addEventListener('install', function (event) {
 
 self.addEventListener('activate', function (event) {
     event.waitUntil(
-        // param 1
+        // start param 1
         caches.keys().then(function (cacheNames) {
             return Promise.all(
                 cacheNames.filter(function (cacheName) {
-                    return (cacheName.startsWith('witter-') && cacheName !== staticCacheName);
+                    return (cacheName.startsWith('wittr-') &&
+                        cacheName !== staticCacheName);
                 }).map(function (cacheName) {
-                    return cache.delete(cacheName);
+                    return caches.delete(cacheName);
                 })
             );
-        })
+        }) // end param 1
     );
 });
 
@@ -68,6 +69,7 @@ self.addEventListener('fetch', function (event) {
                 return new Response("jha - We're in offline mode");
             });
     };
+
     let myCache = function () {
         return caches.match(event.request).then(function (response) {
             if (response) return response;
@@ -81,4 +83,14 @@ self.addEventListener('fetch', function (event) {
         // param 1
         myCache()
     );
+});
+
+/* listen for 'message' event and call .skipWaiting() if I
+ * get the correct message */
+self.addEventListener('message', function(event){
+    // event.data is from worker.postMessage()
+    if(event.data.action === 'skipWaiting') {
+        // make this ser.wor take over pages
+        self.skipWaiting();
+    }
 });

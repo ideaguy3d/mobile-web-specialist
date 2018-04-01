@@ -1,7 +1,7 @@
 import PostsView from './views/Posts';
 import ToastsView from './views/Toasts';
 import idb from 'idb';
-
+// change 14 15 16 17 18
 export default function IndexController(container) {
     this._container = container;
     this._postsView = new PostsView(this._container);
@@ -11,42 +11,29 @@ export default function IndexController(container) {
     this._registerServiceWorker();
 }
 
-IndexController.prototype._updateReady = function () {
-    let toast = this._toastsView.show("jha - There is a new version!",
-        { buttons: ['Got It'] }
-    );
-};
-
-IndexController.prototype._trackInstalling = function (worker) {
-    const indexController = this;
-
-    worker.addEventListener('statechange', function () {
-        if (worker.state === 'installed') {
-            indexController._updateReady();
-        }
-    });
-};
-
 IndexController.prototype._registerServiceWorker = function () {
     const indexController = this;
 
     if (!navigator.serviceWorker) return;
 
     navigator.serviceWorker.register('/sw.js').then(function (reg) {
-        console.log('Registration worked!');
+        /**
+         *  reg = registerObject... I think.
+        **/
 
-        /*  If there's no ctrl, page wasn't loaded via a ser.wor, so user is
+        /* If there's no ctrl, page wasn't loaded via a ser.wor, so user is
          * looking at latest version. In this case exit early. */
         if (!navigator.serviceWorker.controller) return;
 
-        /* if there's an updated worker already waiting, call IndexController._updateReady() */
+        /* if there's an updated worker already waiting,
+         * call IndexController._updateReady() */
         if (reg.waiting) {
-            indexController._updateReady();
+            indexController._updateReady(reg.waiting);
             return;
         }
 
-        /*   if there's an updated working installing, track its' progress. If it becomes
-         * installed call indexController._updateReady() */
+        /* if there's an updated worker installing, track its' progress. Once it
+         * installs call indexController._updateReady() */
         if (reg.installing) {
             indexController._trackInstalling(reg.installing);
             return;
@@ -58,8 +45,34 @@ IndexController.prototype._registerServiceWorker = function () {
         reg.addEventListener('updateFound', function () {
             indexController._trackInstalling(reg.installing);
         });
-    }).catch(function () {
-        console.log('Registration failed!');
+    });
+
+    /* listen for the controlling service working changing and reload the page */
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+        window.location.reload();
+    })
+};
+
+IndexController.prototype._updateReady = function (worker) {
+    let toast = this._toastsView.show("jha - There is a newer version!",
+        {buttons: ['refresh', 'dismiss']}
+    );
+
+    toast.answer.then(function (answer) {
+        if (answer !== 'refresh') return;
+
+        /* tell the ser.wor to skip waiting */
+        worker.postMessage({action: 'skipWaiting'});
+    });
+};
+
+IndexController.prototype._trackInstalling = function (worker) {
+    const indexController = this;
+
+    worker.addEventListener('statechange', function () {
+        if (worker.state === 'installed') {
+            indexController._updateReady(worker);
+        }
     });
 };
 
