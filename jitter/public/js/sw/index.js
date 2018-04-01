@@ -1,3 +1,5 @@
+let staticCacheName = 'wittr-static-v2';
+
 self.addEventListener('install', function (event) {
     const urlsToCache = [
         '/',
@@ -9,7 +11,7 @@ self.addEventListener('install', function (event) {
 
     event.waitUntil(
         // param 1
-        caches.open('wittr-static-v1').then(function (cache) {
+        caches.open(staticCacheName).then(function (cache) {
             // addAll() returns a promise
             return cache.addAll([
                 '/',
@@ -18,6 +20,22 @@ self.addEventListener('install', function (event) {
                 'imgs/icon.png',
                 'https://fonts.googleapis.com/css?family=Dosis:400,500,600,700%7COpen+Sans:400,600,700'
             ]);
+        })
+    );
+});
+
+self.addEventListener('activate', function (event) {
+    event.waitUntil(
+        // param 1
+        caches.keys().then(function (cacheNames) {
+            return Promise.all(
+                cacheNames.filter(function (cacheName) {
+                    return (cacheName.startsWith('witter-') && cacheName !== staticCacheName);
+                }).map(function (cacheName) {
+                    return cache.delete(cacheName);
+                })
+            );
+
         })
     );
 });
@@ -51,10 +69,10 @@ self.addEventListener('fetch', function (event) {
                 return new Response("jha - We're in offline mode");
             });
     };
-    let myCache = function(){
-        return caches.match(event.request).then(function(response){
-            if(response) return response;
-            
+    let myCache = function () {
+        return caches.match(event.request).then(function (response) {
+            if (response) return response;
+
             // sort of a magic line of code that'll return the cache if offline.
             return fetch(event.request);
         });
