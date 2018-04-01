@@ -3,71 +3,113 @@ import ToastsView from './views/Toasts';
 import idb from 'idb';
 
 export default function IndexController(container) {
-  this._container = container;
-  this._postsView = new PostsView(this._container);
-  this._toastsView = new ToastsView(this._container);
-  this._lostConnectionToast = null;
-  this._openSocket();
-  this._registerServiceWorker();
+    this._container = container;
+    this._postsView = new PostsView(this._container);
+    this._toastsView = new ToastsView(this._container);
+    this._lostConnectionToast = null;
+    this._openSocket();
+    this._registerServiceWorker();
 }
 
-IndexController.prototype._registerServiceWorker = function() {
-  if (!navigator.serviceWorker) return;
+IndexController.prototype._updateReady = function () {
+    let toast = this._toastsView.show("jha - There is a new version!",
+        { buttons: ['Got It'] }
+    );
+};
 
-  navigator.serviceWorker.register('/sw.js').then(function() {
-    console.log('Registration worked!');
-  }).catch(function() {
-    console.log('Registration failed!');
-  });
+IndexController.prototype._trackInstalling = function (worker) {
+    const indexController = this;
+
+    worker.addEventListener('statechange', function () {
+        if (worker.state === 'installed') {
+            indexController._updateReady();
+        }
+    });
+};
+
+IndexController.prototype._registerServiceWorker = function () {
+    const indexController = this;
+
+    if (!navigator.serviceWorker) return;
+
+    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+        console.log('Registration worked!');
+
+        /*  If there's no ctrl, page wasn't loaded via a ser.wor, so user is
+         * looking at latest version. In this case exit early. */
+        if (!navigator.serviceWorker.controller) return;
+
+        /* if there's an updated worker already waiting, call IndexController._updateReady() */
+        if (reg.waiting) {
+            indexController._updateReady();
+            return;
+        }
+
+        /*   if there's an updated working installing, track its' progress. If it becomes
+         * installed call indexController._updateReady() */
+        if (reg.installing) {
+            indexController._trackInstalling(reg.installing);
+            return;
+        }
+
+        /* Otherwise, listen for new installing workers arriving.
+         * If one arrives, track its' progress.
+         * If it becomes installed, call indexController._updateReady() */
+        reg.addEventListener('updateFound', function () {
+            indexController._trackInstalling(reg.installing);
+        });
+    }).catch(function () {
+        console.log('Registration failed!');
+    });
 };
 
 // open a connection to the server for live updates
-IndexController.prototype._openSocket = function() {
-  var indexController = this;
-  var latestPostDate = this._postsView.getLatestPostDate();
+IndexController.prototype._openSocket = function () {
+    var indexController = this;
+    var latestPostDate = this._postsView.getLatestPostDate();
 
-  // create a url pointing to /updates with the ws protocol
-  var socketUrl = new URL('/updates', window.location);
-  socketUrl.protocol = 'ws';
+    // create a url pointing to /updates with the ws protocol
+    var socketUrl = new URL('/updates', window.location);
+    socketUrl.protocol = 'ws';
 
-  if (latestPostDate) {
-    socketUrl.search = 'since=' + latestPostDate.valueOf();
-  }
-
-  // this is a little hack for the settings page's tests,
-  // it isn't needed for Wittr
-  socketUrl.search += '&' + location.search.slice(1);
-
-  var ws = new WebSocket(socketUrl.href);
-
-  // add listeners
-  ws.addEventListener('open', function() {
-    if (indexController._lostConnectionToast) {
-      indexController._lostConnectionToast.hide();
+    if (latestPostDate) {
+        socketUrl.search = 'since=' + latestPostDate.valueOf();
     }
-  });
 
-  ws.addEventListener('message', function(event) {
-    requestAnimationFrame(function() {
-      indexController._onSocketMessage(event.data);
+    // this is a little hack for the settings page's tests,
+    // it isn't needed for Wittr
+    socketUrl.search += '&' + location.search.slice(1);
+
+    var ws = new WebSocket(socketUrl.href);
+
+    // add listeners
+    ws.addEventListener('open', function () {
+        if (indexController._lostConnectionToast) {
+            indexController._lostConnectionToast.hide();
+        }
     });
-  });
 
-  ws.addEventListener('close', function() {
-    // tell the user
-    if (!indexController._lostConnectionToast) {
-      indexController._lostConnectionToast = indexController._toastsView.show("Unable to connect. Retrying…");
-    }
+    ws.addEventListener('message', function (event) {
+        requestAnimationFrame(function () {
+            indexController._onSocketMessage(event.data);
+        });
+    });
 
-    // try and reconnect in 5 seconds
-    setTimeout(function() {
-      indexController._openSocket();
-    }, 5000);
-  });
+    ws.addEventListener('close', function () {
+        // tell the user
+        if (!indexController._lostConnectionToast) {
+            indexController._lostConnectionToast = indexController._toastsView.show("Unable to connect. Retrying…");
+        }
+
+        // try and reconnect in 5 seconds
+        setTimeout(function () {
+            indexController._openSocket();
+        }, 5000);
+    });
 };
 
 // called when the web socket sends message data
-IndexController.prototype._onSocketMessage = function(data) {
-  var messages = JSON.parse(data);
-  this._postsView.addPosts(messages);
+IndexController.prototype._onSocketMessage = function (data) {
+    var messages = JSON.parse(data);
+    this._postsView.addPosts(messages);
 };

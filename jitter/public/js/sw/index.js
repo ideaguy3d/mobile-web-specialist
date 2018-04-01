@@ -1,5 +1,5 @@
 let staticCacheName = 'wittr-static-v2';
-
+// third change
 self.addEventListener('install', function (event) {
     const urlsToCache = [
         '/',
@@ -10,7 +10,7 @@ self.addEventListener('install', function (event) {
     ];
 
     event.waitUntil(
-        // param 1
+        // start param 1
         caches.open(staticCacheName).then(function (cache) {
             // addAll() returns a promise
             return cache.addAll([
@@ -20,7 +20,7 @@ self.addEventListener('install', function (event) {
                 'imgs/icon.png',
                 'https://fonts.googleapis.com/css?family=Dosis:400,500,600,700%7COpen+Sans:400,600,700'
             ]);
-        })
+        }) // end param 1
     );
 });
 
@@ -35,7 +35,6 @@ self.addEventListener('activate', function (event) {
                     return cache.delete(cacheName);
                 })
             );
-
         })
     );
 });
