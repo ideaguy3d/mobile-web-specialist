@@ -47,7 +47,7 @@ self.addEventListener('fetch', function (event) {
     if(requestUrl.origin === location.origin) {
         if(requestUrl.pathname === '/') {
             event.respondWith(caches.match('/skeleton'));
-            return; 
+            return;
         }
     }
 
