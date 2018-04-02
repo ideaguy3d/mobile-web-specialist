@@ -1,7 +1,7 @@
 import PostsView from './views/Posts';
 import ToastsView from './views/Toasts';
 import idb from 'idb';
-// change 14 15 16 17 18
+
 export default function IndexController(container) {
     this._container = container;
     this._postsView = new PostsView(this._container);
