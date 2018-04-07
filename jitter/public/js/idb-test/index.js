@@ -108,7 +108,7 @@ dbPromise
     })
     .then(function(cursor){
         if(!cursor) return;
-        return cursor.advance(2); 
+        return cursor.advance(2);
     })
     .then(function logPerson(cursor) {
         if(!cursor) return; // base case

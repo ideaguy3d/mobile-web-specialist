@@ -2,12 +2,22 @@ import PostsView from './views/Posts';
 import ToastsView from './views/Toasts';
 import idb from 'idb';
 
+function openDatabase() {
+    // if the browser doesn't have a ser.wor, we don't need a db.
+    if(!navigator.serviceWorker) return Promise.resolve();
+
+    // return a promise for a db called wittr that contains 1 objectStore `wittrs`
+    // and uses id as its' key and has an idx `by-date`, which is sorted by the time
+
+}
+
 export default function IndexController(container) {
     this._container = container;
     this._postsView = new PostsView(this._container);
     this._toastsView = new ToastsView(this._container);
     this._lostConnectionToast = null;
     this._openSocket();
+    this._openDatabase = openDatabase();
     this._registerServiceWorker();
 }
 
@@ -42,14 +52,19 @@ IndexController.prototype._registerServiceWorker = function () {
         /* Otherwise, listen for new installing workers arriving.
          * If one arrives, track its' progress.
          * If it becomes installed, call indexController._updateReady() */
-        reg.addEventListener('updateFound', function () {
+        reg.addEventListener('updatefound', function () {
             indexController._trackInstalling(reg.installing);
         });
     });
 
+    // Ensure refresh is only called once.
+    // This works around a bug in "force update on reload".
     /* listen for the controlling service working changing and reload the page */
+    let refreshing;
     navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if(refreshing) return;
         window.location.reload();
+        refreshing = true;
     })
 };
 
@@ -67,7 +82,7 @@ IndexController.prototype._updateReady = function (worker) {
 };
 
 IndexController.prototype._trackInstalling = function (worker) {
-    const indexController = this;
+    let indexController = this;
 
     worker.addEventListener('statechange', function () {
         if (worker.state === 'installed') {
@@ -81,7 +96,7 @@ IndexController.prototype._openSocket = function () {
     var indexController = this;
     var latestPostDate = this._postsView.getLatestPostDate();
 
-    // create a url pointing to /updates with the ws protocol
+    // create a url pointing to /updates with the web socket protocol
     var socketUrl = new URL('/updates', window.location);
     socketUrl.protocol = 'ws';
 
@@ -124,5 +139,7 @@ IndexController.prototype._openSocket = function () {
 // called when the web socket sends message data
 IndexController.prototype._onSocketMessage = function (data) {
     var messages = JSON.parse(data);
+    console.log("jha - messages:");
+    console.log(messages);
     this._postsView.addPosts(messages);
 };
